@@ -1,0 +1,29 @@
+RetailHero Recommender System
+=============================
+
+Задача на построение рекомендательного сервиса.
+
+Страница соревнования: https://retailhero.ai/c/recommender_system/
+
+Доступные данные:
+- data/check_queries.tsv — пример набора запросов
+- для обучения моделей можно использовать данные из задачи про отправку смс https://retailhero.ai/c/uplift_modeling/
+
+
+## Локальный запуск решения
+
+Необходимо установить Docker.
+
+Запускаем контейнер с решением:
+
+$ docker run \
+    -v `pwd`:/workspace \
+    -w /workspace \
+    -p 8000:8000 \
+    datasouls/python \
+    gunicorn --bind 0.0.0.0:8000 server:app
+
+Запускаем последовательность тестовых запросов:
+
+$ python run_queries.py http://localhost:8000/recommend data/check_queries.tsv
+Score: 0.08376763317343053
