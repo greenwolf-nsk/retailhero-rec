@@ -1,3 +1,6 @@
 gunicorn~=20.0.4
 Flask~=1.1.1
 requests~=2.22.0
+numpy==1.18.1
+pandas==1.0.0rc0
+catboost==0.20.2

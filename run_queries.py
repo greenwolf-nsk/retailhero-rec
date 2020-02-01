@@ -3,6 +3,8 @@ import time
 
 import requests
 
+from solution.utils import deduplicate
+
 
 class Timer:
 
@@ -37,17 +39,6 @@ def normalized_average_precision(actual, recommended, k=30):
     return ap
 
 
-def deduplicate(items: list):
-    seen = set()
-    dedup = []
-    for item in items:
-        if item not in seen:
-            dedup.append(item)
-            seen.add(item)
-
-    return dedup
-
-
 def run_queries(url, queryset_file):
     ap_values = []
     timings = []
@@ -60,16 +51,21 @@ def run_queries(url, queryset_file):
             with Timer(timings):
                 resp = requests.post(url, json=query_data, timeout=5)
 
-            resp.raise_for_status()
-            resp_data = resp.json()
+            if resp.status_code == 200:
+            #resp.raise_for_status()
+                resp_data = resp.json()
 
-            # assert len(resp_data["recommended_products"]) <= 30
+                # assert len(resp_data["recommended_products"]) <= 30
 
-            ap = normalized_average_precision(
-                next_transaction["product_ids"], deduplicate(resp_data["recommended_products"])[:30], 30
-            )
-            ap_values.append(ap)
+                ap = normalized_average_precision(
+                    next_transaction["product_ids"], deduplicate(resp_data["recommended_products"])[:30], 30
+                )
+                ap_values.append(ap)
+                print(sum(ap_values) / len(ap_values))
+            else:
+                ap_values.append(0)
 
+    print(max(timings))
     print(round(sum(timings) / len(timings), 3))
     map_score = sum(ap_values) / len(ap_values)
     return map_score
