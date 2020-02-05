@@ -1,11 +1,16 @@
 from itertools import chain, groupby
 from operator import itemgetter
+from datetime import datetime
 
-import numpy as np
+
 import pandas as pd
 
 
-def create_features_from_purchases(purchases):
+test_start = datetime(2019, 3, 1, 0, 0, 0)
+
+
+def create_features_from_transactions(users_data: list) -> pd.DataFrame:
+
     features = {
         'total_pucrhases': [],
         'average_psum': [],
@@ -14,63 +19,63 @@ def create_features_from_purchases(purchases):
         'count': [],
         'count_n': [],
         'last_transaction': [],
+        'last_transaction_age': [],
+        'last_product_transaction_age': [],
     }
-    target = []
-    client_bounds = np.where(purchases.client_id != purchases.client_id.shift(1))[0]
-    client_id = 0
-    for client_start, client_end in zip(client_bounds[:-1], client_bounds[1:]):
-        client_df = purchases.iloc[client_start:client_end]
-        trb = np.where(client_df.transaction_id != client_df.transaction_id.shift(1))[0]
-        train = client_df[:trb[-1]]
-        test = client_df[trb[-1]:]
-        total_transactions = train.transaction_id.nunique()
-        train['tid'] = train.groupby('transaction_id').cumcount()
 
-        test_products = set(test.product_id.values)
-        for product, part in train.groupby('product_id'):
+    for user_data in users_data:
+        trs = user_data['transaction_history']
+        if not trs:
+            continue
+        client_id = user_data['client_id']
+        products = list(chain(*(x['products'] for x in trs)))
+        transaction_ids = list(
+            chain(*([i + 1 for _ in range(len(x['products']))] for i, x in enumerate(trs)))
+        )
+        transaction_ages = [
+            (test_start - datetime.fromisoformat(x['datetime'])).days
+            for x in trs
+            for _ in range(len(x['products']))
+        ]
+        for i, tid in enumerate(transaction_ids):
+            products[i]['tid'] = tid
+            products[i]['tr_age'] = transaction_ages[i]
+
+        total_transactions = len(trs)
+        average_psum = sum([tr['purchase_sum'] for tr in trs]) / total_transactions
+
+        key = itemgetter('product_id')
+        for product, part in groupby(sorted(products, key=key), key=key):
+            part = list(part)
+            features['total_pucrhases'].append(total_transactions)
+            features['average_psum'].append(average_psum)
             features['client_id'].append(client_id)
             features['product_id'].append(product)
             features['count'].append(len(part))
-            features['count_n'].append(len(part) / total_transactions)
-            features['last_transaction'].append(train['tid'].max() - part['tid'].max())
-            target.append(product in test_products)
+            features['count_n'].append(len(part) / max(transaction_ids))
+            features['last_transaction'].append(max([p['tid'] for p in part]) / max(transaction_ids))
+            features['last_transaction_age'].append(transaction_ages[-1])
+            features['last_product_transaction_age'].append(min([p['tr_age'] for p in part]))
 
-        client_id += 1
-
-    return features, target
+    return pd.DataFrame(features)
 
 
-def create_features_from_transactions(user_data, products_data):
-    trs = user_data['transaction_history']
-    products = list(chain(*(x['products'] for x in trs)))
-    transaction_ids = list(
-        chain(*([i + 1 for _ in range(len(x['products']))] for i, x in enumerate(trs)))
-    )
-    for i, tid in enumerate(transaction_ids):
-        products[i]['tid'] = tid
-
-    total_transactions = len(trs)
-    average_psum = sum([tr['purchase_sum'] for tr in trs]) / total_transactions
-
-    features = {
-        'total_pucrhases': [],
-        'average_psum': [],
+def create_target_from_transactions(test_users_transactions: list) -> pd.DataFrame:
+    # just get items users bought in their first transaction of test period
+    columns = {
         'client_id': [],
         'product_id': [],
-        'count': [],
-        'count_n': [],
-        'last_transaction': [],
     }
+    for user_transactions in test_users_transactions:
+        if not user_transactions['transaction_history']:
+            continue
+        first_transaction = user_transactions['transaction_history'][0]
+        client_id = user_transactions['client_id']
 
-    key = itemgetter('product_id')
-    for product, part in groupby(sorted(products, key=key), key=key):
-        part = list(part)
-        features['total_pucrhases'].append(total_transactions)
-        features['average_psum'].append(average_psum)
-        features['client_id'].append(0)
-        features['product_id'].append(product)
-        features['count'].append(len(part))
-        features['count_n'].append(len(part) / max(transaction_ids))
-        features['last_transaction'].append(max([p['tid'] for p in part]) / max(transaction_ids))
+        for product in first_transaction['products']:
+            columns['client_id'].append(client_id)
+            columns['product_id'].append(product['product_id'])
 
-    return pd.DataFrame(features).merge(products_data, how='left').fillna(0)
+    df = pd.DataFrame(columns)
+    df['target'] = 1
+    return df

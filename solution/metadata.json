@@ -1,4 +1,4 @@
 {
-    "image": "datasouls/python",
+    "image": "greenwo1f/retailhero:latest",
     "entry_point": "gunicorn --bind 0.0.0.0:8000 server:app"
 }
