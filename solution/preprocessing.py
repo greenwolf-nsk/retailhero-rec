@@ -1,15 +1,17 @@
+from collections import defaultdict
 from itertools import chain, groupby
 from operator import itemgetter
 from datetime import datetime
 
 
 import pandas as pd
-
+import numpy as np
+from scipy.spatial.distance import cosine
 
 test_start = datetime(2019, 3, 1, 0, 0, 0)
 
 
-def create_features_from_transactions(users_data: list) -> pd.DataFrame:
+def create_features_from_transactions(users_data: list, product_vectors: dict) -> pd.DataFrame:
 
     features = {
         'total_pucrhases': [],
@@ -17,10 +19,11 @@ def create_features_from_transactions(users_data: list) -> pd.DataFrame:
         'client_id': [],
         'product_id': [],
         'count': [],
-        'count_n': [],
+        'p_tr_share': [],
         'last_transaction': [],
         'last_transaction_age': [],
         'last_product_transaction_age': [],
+        'client_product_cosine': []
     }
 
     for user_data in users_data:
@@ -29,6 +32,8 @@ def create_features_from_transactions(users_data: list) -> pd.DataFrame:
             continue
         client_id = user_data['client_id']
         products = list(chain(*(x['products'] for x in trs)))
+        product_ids = [product['product_id'] for product in products]
+        client_vector = create_client_vector(product_ids, product_vectors)
         transaction_ids = list(
             chain(*([i + 1 for _ in range(len(x['products']))] for i, x in enumerate(trs)))
         )
@@ -47,15 +52,23 @@ def create_features_from_transactions(users_data: list) -> pd.DataFrame:
         key = itemgetter('product_id')
         for product, part in groupby(sorted(products, key=key), key=key):
             part = list(part)
+            product_count = sum([product['quantity'] for product in part])
             features['total_pucrhases'].append(total_transactions)
             features['average_psum'].append(average_psum)
             features['client_id'].append(client_id)
             features['product_id'].append(product)
-            features['count'].append(len(part))
-            features['count_n'].append(len(part) / max(transaction_ids))
+            features['count'].append(product_count)
+            features['p_tr_share'].append(len(part) / max(transaction_ids))
             features['last_transaction'].append(max([p['tid'] for p in part]) / max(transaction_ids))
             features['last_transaction_age'].append(transaction_ages[-1])
             features['last_product_transaction_age'].append(min([p['tr_age'] for p in part]))
+            client_product_dot = 0
+            if product in product_vectors:
+                client_product_dot = cosine(
+                    client_vector,
+                    product_vectors[product]
+                )
+            features['client_product_cosine'].append(client_product_dot)
 
     return pd.DataFrame(features)
 
@@ -79,3 +92,45 @@ def create_target_from_transactions(test_users_transactions: list) -> pd.DataFra
     df = pd.DataFrame(columns)
     df['target'] = 1
     return df
+
+
+def create_client_vector(product_ids: list, product_vectors: dict) -> np.array:
+    client_vector = np.zeros(64)
+    cnt = 0
+    for product_id in product_ids:
+        if product_id in product_vectors:
+            cnt += 1
+            client_vector += product_vectors[product_id]
+
+    return client_vector / cnt
+
+
+
+
+
+def create_product_features_from_users_data(users_data: list) -> pd.DataFrame:
+    product_stats = defaultdict(lambda: defaultdict(list))
+    for record in users_data:
+        client_id = record['client_id']
+        for tr in record['transaction_history']:
+            relative_dt = (test_start - datetime.fromisoformat(tr['datetime'])).days
+            for product in tr['products']:
+                product_id = product['product_id']
+                quantity = product['quantity']
+                product_stats[product_id]['dts'].append(relative_dt)
+                product_stats[product_id]['q'].append(quantity)
+                product_stats[product_id]['client_id'].append(client_id)
+
+    product_features = defaultdict(list)
+
+    for product_id, features in product_stats.items():
+        product_features['product_id'].append(product_id)
+        product_features['max_dt'].append(max(features['dts']))
+        product_features['min_dt'].append(min(features['dts']))
+        product_features['avg_dt'].append(sum(features['dts']) / len(features['dts']))
+        product_features['max_q'].append(max(features['q']))
+        product_features['min_q'].append(min(features['q']))
+        product_features['avg_q'].append(sum(features['q']) / len(features['q']))
+        product_features['unique_clients'].append(len(set(features['client_id'])))
+
+    return pd.DataFrame(product_features)
