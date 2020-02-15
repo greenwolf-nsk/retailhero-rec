@@ -17,6 +17,8 @@ cols = [
     'max_dt', 'min_dt', 'avg_dt', 'max_q', 'min_q', 'avg_q', 'unique_clients'
 ]
 
+cat_cols = ['level_1', 'level_2', 'level_3', 'level_4', 'segment_id', 'brand_id', 'vendor_id']
+
 
 class CatBoostRecommenderWithPopularFallback:
 

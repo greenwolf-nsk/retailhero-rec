@@ -94,12 +94,15 @@ def create_target_from_transactions(test_users_transactions: list) -> pd.DataFra
 
 
 def create_client_vector(product_ids: list, product_vectors: dict) -> np.array:
-    client_vector = np.zeros(64)
+    client_vector = None
     cnt = 0
     for product_id in product_ids:
         if product_id in product_vectors:
             cnt += 1
-            client_vector += product_vectors[product_id]
+            if client_vector is None:
+                client_vector = np.array(product_vectors[product_id])
+            else:
+                client_vector += product_vectors[product_id]
 
     return client_vector / cnt
 

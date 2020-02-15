@@ -13,11 +13,10 @@ def validate(
             next_transaction = test_data['transaction_history'][0]
             gt_items = [p['product_id'] for p in next_transaction['products']]
             if dot_only:
-                score, intersect = recommender.validate_dot(user_seed, gt_items, normalized_average_precision)
+                score = recommender.validate_dot(user_seed, gt_items, normalized_average_precision)
             else:
-                score, intersect = recommender.validate(user_seed, gt_items, normalized_average_precision)
+                score = recommender.validate(user_seed, gt_items, normalized_average_precision)
 
-            if intersect:
-                scores.append(score)
+            scores.append(score)
 
     print(sum(scores) / len(scores))

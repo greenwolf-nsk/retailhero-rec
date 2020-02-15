@@ -6,18 +6,26 @@ import catboost
 import flask as fl
 from flask import Flask, jsonify
 
+from lib.config import TrainConfig
 from lib.hardcode import TOP_ITEMS
 from lib.i2i_model import load_item_vectors
+from lib.logger import configure_logger
 from lib.recommender import CatBoostRecommenderWithPopularFallback, cols
 
-print(time.time())
+logger = configure_logger(logger_name='server', log_dir='')
+
+
+logger.info('starting to load all stuff')
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+config = TrainConfig.from_json('configs/train_config_base.json')
+
 app = Flask(__name__)
-app.products_data = pd.read_csv(f"{ROOT_DIR}/data/products_enriched_200k.csv")
+app.products_data = pd.read_csv(config.products_enriched_file)
 app.products_data.segment_id = app.products_data.segment_id.fillna(0).astype(int)
+
 app.model = catboost.CatBoost()
-app.model.load_model(f"{ROOT_DIR}/models/catboost_rank_dot_200k.cb")
-app.item_vectors = load_item_vectors(f"{ROOT_DIR}/data/item_vectors_collab.json")
+app.model.load_model(config.catboost.model_file)
+app.item_vectors = load_item_vectors(config.implicit.vectors_file)
 app.recommender = CatBoostRecommenderWithPopularFallback(
     model=app.model,
     item_vectors=app.item_vectors,
@@ -25,7 +33,7 @@ app.recommender = CatBoostRecommenderWithPopularFallback(
     feature_names=cols,
 
 )
-print(time.time())
+logger.info('ready!')
 
 
 @app.route("/ready")
