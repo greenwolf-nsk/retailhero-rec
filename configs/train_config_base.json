@@ -1,0 +1,26 @@
+{
+    "data_dir": "./data",
+    "log_dir": "./logs",
+    "products_file": "products.csv",
+    "features_file": "features_200k.csv",
+    "gt_items_count_file": "gt_items_count.csv",
+    "products_enriched_file":  "products_enriched.csv",
+    "client_purchases_file": "clients_purchases.tsv",
+    "client_offset": 1000,
+    "client_limit": 200000,
+    "implicit": {
+        "epochs": 50,
+        "num_factors": 64,
+        "vectors_file": "vectors.json"
+    },
+    "catboost": {
+        "model_file": "catboost_200k.cb",
+        "train_params": {
+            "objective": "Logloss",
+            "task_type": "GPU",
+            "eval_metric": "MAP",
+            "iterations": 500,
+            "verbose": 10
+        }
+    }
+}

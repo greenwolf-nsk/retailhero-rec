@@ -130,3 +130,12 @@ def create_product_features_from_users_data(users_data: list) -> pd.DataFrame:
         product_features['unique_clients'].append(len(set(features['client_id'])))
 
     return pd.DataFrame(product_features)
+
+
+def create_gt_items_count_df(target: pd.DataFrame) -> pd.DataFrame:
+    client_gt_items = target.client_id.value_counts().reset_index()
+
+    client_gt_items.columns = ['client_id', 'gt_count']
+    client_gt_items.gt_count = np.minimum(30, client_gt_items.gt_count.values)
+
+    return client_gt_items

@@ -7,7 +7,7 @@ import flask as fl
 from flask import Flask, jsonify
 
 from lib.hardcode import TOP_ITEMS
-from lib.i2i_data import load_item_vectors
+from lib.i2i_model import load_item_vectors
 from lib.recommender import CatBoostRecommenderWithPopularFallback, cols
 
 print(time.time())

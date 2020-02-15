@@ -1,55 +1,64 @@
+import json
+import sys
+
+import implicit
 import pandas as pd
-import catboost as cb
-import numpy as np
 
-features = pd.read_csv('../data/features_200k.csv')
-products = pd.read_csv('../data/products.csv')
-additional_product_features = pd.read_csv('../data/additional_product_features.csv')
+from lib.config import TrainConfig, ImplicitConfig
+from lib.logger import configure_logger
+from lib.preprocessing import create_features_from_transactions, \
+    create_product_features_from_users_data, create_target_from_transactions, \
+    create_gt_items_count_df
+from lib.train_utils import read_clients_purchases
+from lib.i2i_model import extract_product_ids, encode_product_ids, create_sparse_purchases_matrix
 
-additional_product_features.head()
+logger = configure_logger(logger_name='train', log_dir='logs')
 
-features = pd.merge(features, products, how='left').fillna(0)
-features = pd.merge(features, additional_product_features, how='left').fillna(0)
 
-features.head()
+def train_implicit_vectors(train_records: list, config: ImplicitConfig):
+    product_ids = extract_product_ids(train_records)
+    product_id_map, inv_map = encode_product_ids(product_ids)
+    matrix = create_sparse_purchases_matrix(train_records)
+    model = implicit.als.AlternatingLeastSquares(
+        factors=config.epochs,
+        iterations=config.num_factors
+    )
+    model.fit(matrix)
+    item_vectors = {
+        inv_map[i]: list(map(float, factor))
+        for i, factor in enumerate(model.user_factors)  # user factors, cuz in implicit its inverted
+    }
+    with open(config.vectors_file, 'w') as f:
+        json.dump(item_vectors, f)
 
-features['target'] = features['target'].fillna(0).astype(int)
+    return item_vectors
 
-features.segment_id = features.segment_id.astype(int)
 
-median_client_id = features.iloc[features.shape[0] // 2].client_id
-split_idx = features[features['client_id'] == median_client_id].index.max() + 1
+if __name__ == '__main__':
+    config_path = sys.argv[1]
+    config = TrainConfig.from_json(config_path)
 
-df = features[:split_idx]
-test_df = features[split_idx:]
+    logger.info(f'config: {config_path}')
+    train_records, test_records = read_clients_purchases(
+        config.client_purchases_file,
+        config.client_offset,
+        config.client_limit
+    )
+    logger.info(f'read {config.client_limit} clients purchases from {config.client_offset}')
 
-cols = [
-    'total_pucrhases', 'average_psum', 'count', 'p_tr_share', 'last_transaction',
-    'last_transaction_age', 'last_product_transaction_age', 'client_product_cosine',
-    'level_1', 'level_2', 'level_3', 'level_4', 'segment_id', 'brand_id', 'vendor_id',
-    'netto', 'is_own_trademark', 'is_alcohol',
-    'max_dt', 'min_dt', 'avg_dt', 'max_q', 'min_q', 'avg_q', 'unique_clients'
-]
-cat_cols = ['level_1', 'level_2', 'level_3', 'level_4', 'segment_id', 'brand_id', 'vendor_id']
+    item_vectors = train_implicit_vectors(train_records, config.implicit)
+    logger.info(f'trained vectors for {len(item_vectors)} items')
 
-client_id_map = {client_id: i for i, client_id in enumerate(df['client_id'].unique())}
-tclient_id_map = {client_id: i for i, client_id in enumerate(test_df['client_id'].unique())}
+    features = create_features_from_transactions(train_records, item_vectors)
+    target = create_target_from_transactions(test_records)
+    gt_items_count = create_gt_items_count_df(target)
+    features_df = features.merge(target, how='left', sort=False)
+    features_df.to_csv(config.features_file, index=False)
+    gt_items_count.to_csv(config.gt_items_count_file, index=False)
+    logger.info(f'created features and target, shape: {features.shape}')
 
-train_groups = df['client_id'].map(client_id_map).values
-test_groups = test_df['client_id'].map(tclient_id_map).values
-
-train_pool = cb.Pool(df[cols], df['target'], cat_features=cat_cols, group_id=train_groups)
-test_pool = cb.Pool(test_df[cols], test_df['target'], cat_features=cat_cols, group_id=test_groups)
-
-params = {
-    'objective': 'Logloss',
-    'task_type': 'GPU',
-    'eval_metric': 'MAP',
-    'iterations': 500,
-    'verbose': 10,
-}
-
-clf = cb.CatBoost(params)
-clf.fit(train_pool, eval_set=test_pool, early_stopping_rounds=100)
-
-clf.save_model('../solution/models/catboost_rank_cosine_200k.cb')
+    product_features = create_product_features_from_users_data(train_records)
+    products = pd.read_csv(config.products_file)
+    products_enriched = pd.merge(products, product_features, how='left')
+    products_enriched.to_csv(config.products_enriched_file, index=False)
+    logger.info(f'created enriched product features, shape: {products_enriched.shape}')
