@@ -1,16 +1,18 @@
 import pandas as pd
 
-from i2i_data import load_item_vectors
-from train_utils import read_clients_purchases
-from solution.preprocessing import (
+from lib.i2i_data import load_item_vectors
+from lib.train_utils import read_clients_purchases
+from lib.preprocessing import (
     create_features_from_transactions,
     create_target_from_transactions,
     create_product_features_from_users_data,
 )
 
+if __name__ == '__main__':
 
-products_data = pd.read_csv('../data/products_enriched.csv')
-item_vectors = load_item_vectors('../data/item_vectors.json')
+
+
+    item_vectors = load_item_vectors('../data/item_vectors.json')
 
 train, test = read_clients_purchases('../data/clients_purchases.tsv', offset=1000, limit=100000)
 

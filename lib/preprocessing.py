@@ -6,7 +6,6 @@ from datetime import datetime
 
 import pandas as pd
 import numpy as np
-from scipy.spatial.distance import cosine
 
 test_start = datetime(2019, 3, 1, 0, 0, 0)
 
@@ -23,7 +22,7 @@ def create_features_from_transactions(users_data: list, product_vectors: dict) -
         'last_transaction': [],
         'last_transaction_age': [],
         'last_product_transaction_age': [],
-        'client_product_cosine': []
+        'client_product_dot': []
     }
 
     for user_data in users_data:
@@ -64,11 +63,11 @@ def create_features_from_transactions(users_data: list, product_vectors: dict) -
             features['last_product_transaction_age'].append(min([p['tr_age'] for p in part]))
             client_product_dot = 0
             if product in product_vectors:
-                client_product_dot = cosine(
+                client_product_dot = np.dot(
                     client_vector,
                     product_vectors[product]
                 )
-            features['client_product_cosine'].append(client_product_dot)
+            features['client_product_dot'].append(client_product_dot)
 
     return pd.DataFrame(features)
 
@@ -103,9 +102,6 @@ def create_client_vector(product_ids: list, product_vectors: dict) -> np.array:
             client_vector += product_vectors[product_id]
 
     return client_vector / cnt
-
-
-
 
 
 def create_product_features_from_users_data(users_data: list) -> pd.DataFrame:

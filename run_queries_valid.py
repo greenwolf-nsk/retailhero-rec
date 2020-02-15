@@ -4,7 +4,7 @@ import time
 
 import requests
 
-from solution.utils import deduplicate
+from lib.utils import deduplicate
 
 
 class Timer:
