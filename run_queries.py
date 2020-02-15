@@ -3,7 +3,8 @@ import time
 
 import requests
 
-from solution.utils import deduplicate
+from lib.utils import deduplicate
+from numpy import quantile
 
 
 class Timer:
@@ -67,6 +68,7 @@ def run_queries(url, queryset_file):
 
     print(max(timings))
     print(round(sum(timings) / len(timings), 3))
+    print(quantile(timings, 0.95))
     map_score = sum(ap_values) / len(ap_values)
     return map_score
 
