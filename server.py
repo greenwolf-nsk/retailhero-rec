@@ -1,4 +1,5 @@
 import os
+import pickle
 import time
 
 import pandas as pd
@@ -17,7 +18,7 @@ logger = configure_logger(logger_name='server', log_dir='')
 
 logger.info('starting to load all stuff')
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-config = TrainConfig.from_json('configs/train_config_base.json')
+config = TrainConfig.from_json('configs/train_config_300k.json')
 
 app = Flask(__name__)
 app.products_data = pd.read_csv(config.products_enriched_file)
@@ -26,13 +27,18 @@ app.products_data.segment_id = app.products_data.segment_id.fillna(0).astype(int
 app.model = catboost.CatBoost()
 app.model.load_model(config.catboost.model_file)
 app.item_vectors = load_item_vectors(config.implicit.vectors_file)
+with open(config.implicit.model_file, 'rb') as f:
+    app.implicit_model = pickle.load(f)
+
 app.recommender = CatBoostRecommenderWithPopularFallback(
     model=app.model,
+    implicit_model=app.implicit_model,
     item_vectors=app.item_vectors,
     products_data=app.products_data,
     feature_names=cols,
 
 )
+
 logger.info('ready!')
 
 

@@ -12,6 +12,7 @@ if __name__ == '__main__':
         'configs',
         'server.py',
         'metadata.json',
+        config.implicit.model_file,
         config.catboost.model_file,
         config.products_enriched_file,
         config.implicit.vectors_file,

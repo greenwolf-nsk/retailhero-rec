@@ -7,28 +7,36 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
+from lib.i2i_model import ImplicitRecommender
+
 test_start = datetime(2019, 3, 1, 0, 0, 0)
 
 
-def create_features_from_transactions(users_data: list, product_vectors: dict) -> pd.DataFrame:
+def get_client_product_dot(client_vector: np.array, product: str, product_vectors: dict) -> float:
+    client_product_dot = 0
+    if product in product_vectors:
+        client_product_dot = np.dot(
+            client_vector,
+            product_vectors[product]
+        )
+    return client_product_dot
 
-    features = {
-        'total_pucrhases': [],
-        'average_psum': [],
-        'client_id': [],
-        'product_id': [],
-        'count': [],
-        'p_tr_share': [],
-        'last_transaction': [],
-        'last_transaction_age': [],
-        'last_product_transaction_age': [],
-        'client_product_dot': []
-    }
+
+def create_features_from_transactions(
+        users_data: list,
+        product_vectors: dict,
+        implicit_recommender: ImplicitRecommender = None,
+) -> pd.DataFrame:
+
+    features = defaultdict(list)
 
     for user_data in users_data:
         trs = user_data['transaction_history']
         if not trs:
             continue
+        if implicit_recommender is not None:
+            recs = dict(implicit_recommender.recommend(user_data, 100))
+
         client_id = user_data['client_id']
         products = list(chain(*(x['products'] for x in trs)))
         product_ids = [product['product_id'] for product in products]
@@ -61,13 +69,37 @@ def create_features_from_transactions(users_data: list, product_vectors: dict) -
             features['last_transaction'].append(max([p['tid'] for p in part]) / max(transaction_ids))
             features['last_transaction_age'].append(transaction_ages[-1])
             features['last_product_transaction_age'].append(min([p['tr_age'] for p in part]))
-            client_product_dot = 0
-            if product in product_vectors:
-                client_product_dot = np.dot(
-                    client_vector,
-                    product_vectors[product]
-                )
+
+            client_product_dot = get_client_product_dot(
+                client_vector,
+                product,
+                product_vectors
+            )
             features['client_product_dot'].append(client_product_dot)
+            if implicit_recommender is not None:
+                features['implicit_score'].append(recs.get(product, 0))
+
+        seen_products = set(product_ids)
+
+        if implicit_recommender is not None:
+            for product_id, score in recs.items():
+                if product_id not in seen_products:
+                    for k in features:
+                        if k == 'client_id':
+                            features[k].append(client_id)
+                        elif k == 'product_id':
+                            features[k].append(product_id)
+                        elif k == 'implicit_score':
+                            features[k].append(score)
+                        elif k == 'client_product_dot':
+                            client_product_dot = get_client_product_dot(
+                                client_vector,
+                                product_id,
+                                product_vectors
+                            )
+                            features[k].append(client_product_dot)
+                        else:
+                            features[k].append(0)
 
     return pd.DataFrame(features)
 

@@ -22,10 +22,12 @@ class ImplicitConfig(Config):
         epochs: int,
         num_factors: int,
         vectors_file: str,
+        model_file: str,
     ):
         self.epochs = epochs
         self.num_factors = num_factors
         self.vectors_file = vectors_file
+        self.model_file = model_file
         
         
 class CatboostConfig(Config):
@@ -67,6 +69,7 @@ class TrainConfig(Config):
 
         self.implicit = ImplicitConfig.from_dict(implicit)
         self.implicit.vectors_file = os.path.join(data_dir, self.implicit.vectors_file)
+        self.implicit.model_file = os.path.join(data_dir, self.implicit.model_file)
 
         self.catboost = CatboostConfig.from_dict(catboost)
         self.catboost.model_file = os.path.join(data_dir, self.catboost.model_file)
