@@ -12,17 +12,17 @@ from lib.hardcode import TOP_ITEMS
 from lib.i2i_model import load_item_vectors
 from lib.logger import configure_logger
 from lib.recommender import CatBoostRecommenderWithPopularFallback, cols
+from lib.utils import read_products_file
 
 logger = configure_logger(logger_name='server', log_dir='')
 
 
 logger.info('starting to load all stuff')
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-config = TrainConfig.from_json('configs/train_config_300k.json')
+config = TrainConfig.from_json('configs/train_config_base.json')
 
 app = Flask(__name__)
-app.products_data = pd.read_csv(config.products_enriched_file)
-app.products_data.segment_id = app.products_data.segment_id.fillna(0).astype(int)
+app.products_data = read_products_file(config.products_enriched_file)
 
 app.model = catboost.CatBoost()
 app.model.load_model(config.catboost.model_file)

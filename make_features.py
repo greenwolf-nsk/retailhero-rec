@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
     logger.info(f'trained vectors for {len(item_vectors)} items')
 
-    features = create_features_from_transactions(train_records, item_vectors, model)
+    features = pd.DataFrame(create_features_from_transactions(train_records, item_vectors, model))
     target = create_target_from_transactions(test_records)
     gt_items_count = create_gt_items_count_df(target)
     features_df = features.merge(target, how='left', sort=False)

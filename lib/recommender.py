@@ -7,15 +7,15 @@ from catboost import CatBoost
 from lib.hardcode import TOP_ITEMS
 from lib.i2i_model import ImplicitRecommender
 from lib.preprocessing import create_features_from_transactions
-from lib.utils import deduplicate
-
+from lib.utils import deduplicate, inplace_hash_join
 
 cols = [
     'total_pucrhases', 'average_psum', 'count', 'p_tr_share', 'last_transaction',
     'last_transaction_age', 'last_product_transaction_age', 'client_product_dot',
     'level_1', 'level_2', 'level_3', 'level_4', 'segment_id', 'brand_id', 'vendor_id',
-    'netto', 'is_own_trademark', 'is_alcohol',
-    'max_dt', 'min_dt', 'avg_dt', 'max_q', 'min_q', 'avg_q', 'unique_clients'
+    'netto', 'is_own_trademark', 'is_alcohol', 'implicit_score',
+    'max_dt', 'min_dt', 'avg_dt', 'max_q', 'min_q', 'avg_q', 'unique_clients',
+    'max_p', 'min_p', 'avg_p',
 ]
 
 cat_cols = ['level_1', 'level_2', 'level_3', 'level_4', 'segment_id', 'brand_id', 'vendor_id']
@@ -29,7 +29,7 @@ class CatBoostRecommenderWithPopularFallback:
         implicit_model: ImplicitRecommender,
         feature_names: list,
         item_vectors: dict,
-        products_data: pd.DataFrame,
+        products_data: dict,
     ):
         self.model = model
         self.implicit_model = implicit_model
@@ -38,15 +38,13 @@ class CatBoostRecommenderWithPopularFallback:
         self.feature_names = feature_names
 
     def recommend(self, user_transactions: dict, limit: int = 30) -> list:
-        features = (
-            create_features_from_transactions(
-                [user_transactions],
-                self.item_vectors,
-                self.implicit_model
-            )
-            .merge(self.products_data, how='left')
-            .fillna(0)
+        features = create_features_from_transactions(
+            [user_transactions],
+            self.item_vectors,
+            self.implicit_model
         )
+        inplace_hash_join(features, self.products_data)
+        features = pd.DataFrame(features).fillna(0)
         features.segment_id = features.segment_id.astype(int)
         scores = self.model.predict(features[self.feature_names])
         recs = sorted(zip(features['product_id'], scores), key=itemgetter(1), reverse=True)

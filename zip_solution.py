@@ -11,6 +11,7 @@ if __name__ == '__main__':
         'lib',
         'configs',
         'server.py',
+        'reformat_data.py',
         'metadata.json',
         config.implicit.model_file,
         config.catboost.model_file,

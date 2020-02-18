@@ -101,7 +101,7 @@ def create_features_from_transactions(
                         else:
                             features[k].append(0)
 
-    return pd.DataFrame(features)
+    return features
 
 
 def create_target_from_transactions(test_users_transactions: list) -> pd.DataFrame:
@@ -148,8 +148,10 @@ def create_product_features_from_users_data(users_data: list) -> pd.DataFrame:
             for product in tr['products']:
                 product_id = product['product_id']
                 quantity = product['quantity']
+                price = product['price']
                 product_stats[product_id]['dts'].append(relative_dt)
                 product_stats[product_id]['q'].append(quantity)
+                product_stats[product_id]['p'].append(price)
                 product_stats[product_id]['client_id'].append(client_id)
 
     product_features = defaultdict(list)
@@ -163,6 +165,9 @@ def create_product_features_from_users_data(users_data: list) -> pd.DataFrame:
         product_features['min_q'].append(min(features['q']))
         product_features['avg_q'].append(sum(features['q']) / len(features['q']))
         product_features['unique_clients'].append(len(set(features['client_id'])))
+        product_features['max_p'].append(max(features['p']))
+        product_features['min_p'].append(min(features['p']))
+        product_features['avg_p'].append(sum(features['p']) / len(features['p']))
 
     return pd.DataFrame(product_features)
 
@@ -174,3 +179,7 @@ def create_gt_items_count_df(target: pd.DataFrame) -> pd.DataFrame:
     client_gt_items.gt_count = np.minimum(30, client_gt_items.gt_count.values)
 
     return client_gt_items
+
+
+def create_store_features_from_users_data(users_data: list) -> pd.DataFrame:
+    pass
