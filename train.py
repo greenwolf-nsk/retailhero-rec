@@ -18,6 +18,8 @@ if __name__ == '__main__':
     products_enriched = pd.read_csv(config.products_enriched_file)
 
     features = pd.merge(features, products_enriched, how='left').fillna(0)
+    columns_diff = set(features.columns) - set(cols)
+    logger.info(f'columns not used: {columns_diff}')
     features['target'] = features['target'].fillna(0).astype(int)
     features.segment_id = features.segment_id.astype(int)
 
