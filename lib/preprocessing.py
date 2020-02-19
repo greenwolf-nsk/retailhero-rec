@@ -82,23 +82,29 @@ def create_features_from_transactions(
         seen_products = set(product_ids)
 
         if implicit_recommender is not None:
+            common_features = {
+                'total_pucrhases',
+                'average_psum',
+                'client_id',
+                'product_id',
+                'implicit_score',
+                'client_product_dot',
+            }
             for product_id, score in recs.items():
                 if product_id not in seen_products:
+                    features['total_pucrhases'].append(total_transactions)
+                    features['average_psum'].append(average_psum)
+                    features['client_id'].append(client_id)
+                    features['product_id'].append(product_id)
+                    features['implicit_score'].append(score)
+                    client_product_dot = get_client_product_dot(
+                        client_vector,
+                        product_id,
+                        product_vectors
+                    )
+                    features['client_product_dot'].append(client_product_dot)
                     for k in features:
-                        if k == 'client_id':
-                            features[k].append(client_id)
-                        elif k == 'product_id':
-                            features[k].append(product_id)
-                        elif k == 'implicit_score':
-                            features[k].append(score)
-                        elif k == 'client_product_dot':
-                            client_product_dot = get_client_product_dot(
-                                client_vector,
-                                product_id,
-                                product_vectors
-                            )
-                            features[k].append(client_product_dot)
-                        else:
+                        if k not in common_features:
                             features[k].append(0)
 
     return features

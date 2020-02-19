@@ -29,10 +29,10 @@ def train_implicit_vectors(
         factors=config.num_factors,
         iterations=config.epochs
     )
-    model.fit(matrix)
+    model.fit(matrix.T)
     item_vectors = {
         product_id_map.to_product(i): list(map(float, factor))
-        for i, factor in enumerate(model.user_factors)  # user factors, cuz in implicit its inverted
+        for i, factor in enumerate(model.item_factors)  # user factors, cuz in implicit its inverted
     }
     with open(config.vectors_file, 'w') as f:
         json.dump(item_vectors, f)

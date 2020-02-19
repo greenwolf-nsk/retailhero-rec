@@ -10,7 +10,7 @@
     "client_limit": 300000,
     "implicit": {
         "epochs": 50,
-        "num_factors": 64,
+        "num_factors": 128,
         "vectors_file": "vectors.json",
         "model_file": "model_300k.pkl"
     },
@@ -20,7 +20,7 @@
             "objective": "Logloss",
             "task_type": "GPU",
             "eval_metric": "MAP",
-            "iterations": 5000,
+            "iterations": 500,
             "verbose": 10
         }
     }
