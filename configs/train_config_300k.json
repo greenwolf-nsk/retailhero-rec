@@ -5,6 +5,7 @@
     "features_file": "features_300k.csv",
     "gt_items_count_file": "gt_items_count.csv",
     "products_enriched_file":  "products_enriched.csv",
+    "product_store_stats_file":  "product_store_stats_300k.pkl",
     "client_purchases_file": "clients_purchases.tsv",
     "client_offset": 1000,
     "client_limit": 300000,

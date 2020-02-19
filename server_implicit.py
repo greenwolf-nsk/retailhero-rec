@@ -13,7 +13,7 @@ logger = configure_logger(logger_name='server', log_dir='')
 
 logger.info('starting to load all stuff')
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-config = TrainConfig.from_json('configs/train_config_base.json')
+config = TrainConfig.from_json('configs/train_config_300k.json')
 
 app = Flask(__name__)
 with open(config.implicit.model_file, 'rb') as f:

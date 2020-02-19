@@ -7,6 +7,7 @@ import pandas as pd
 
 from lib.config import TrainConfig, ImplicitConfig
 from lib.logger import configure_logger
+from lib.product_store_features import create_product_store_stats
 from lib.train_utils import read_clients_purchases
 from lib.i2i_model import create_sparse_purchases_matrix, ProductIdMap
 from lib.preprocessing import (
@@ -57,7 +58,19 @@ if __name__ == '__main__':
 
     logger.info(f'trained vectors for {len(item_vectors)} items')
 
-    features = pd.DataFrame(create_features_from_transactions(train_records, item_vectors, model))
+    product_store_stats = create_product_store_stats(train_records)
+    with open(config.product_store_stats_file, 'wb') as f:
+        pickle.dump(product_store_stats, f)
+
+    logger.info(f'calculated and saved product store stats')
+
+    features_dict = create_features_from_transactions(
+        train_records,
+        item_vectors,
+        model,
+        product_store_stats
+    )
+    features = pd.DataFrame(features_dict)
     target = create_target_from_transactions(test_records)
     gt_items_count = create_gt_items_count_df(target)
     features_df = features.merge(target, how='left', sort=False)

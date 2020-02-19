@@ -51,6 +51,7 @@ class TrainConfig(Config):
         gt_items_count_file: str,
         client_purchases_file: str,
         products_enriched_file: str,
+        product_store_stats_file: str,
         client_offset: int,
         client_limit: int,
         implicit: dict,
@@ -63,6 +64,7 @@ class TrainConfig(Config):
         self.gt_items_count_file = os.path.join(data_dir, gt_items_count_file)
         self.client_purchases_file = os.path.join(data_dir, client_purchases_file)
         self.products_enriched_file = os.path.join(data_dir, products_enriched_file)
+        self.product_store_stats_file = os.path.join(data_dir, product_store_stats_file)
 
         self.client_offset = client_offset
         self.client_limit = client_limit
