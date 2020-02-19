@@ -1,14 +1,12 @@
 import json
-import datetime
 from pathlib import Path
 from typing import List
 
 import attr
-import pandas as pd
 import tqdm as tqdm
 
 
-@attr.s
+@attr.s(slots=True)
 class PurchaseRow:
     client_id = attr.ib()
     transaction_id = attr.ib()
@@ -70,8 +68,10 @@ def process_client_purchases(client_purchases: List[PurchaseRow]) -> dict:
             current_transaction = {
                 'datetime': row.transaction_datetime,
                 'purchase_sum': row.purchase_sum,
+                'store_id': row.store_id,
                 'products': [{
                     'product_id': row.product_id,
+                    'price': row.trn_sum_from_iss,
                     'quantity': row.product_quantity,
                 }]
             }
@@ -81,6 +81,7 @@ def process_client_purchases(client_purchases: List[PurchaseRow]) -> dict:
         else:
             current_transaction['products'].append({
                 'product_id': row.product_id,
+                'price': row.trn_sum_from_iss,
                 'quantity': row.product_quantity,
             })
 

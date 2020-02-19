@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 
@@ -10,8 +11,8 @@ class Config:
 
     @classmethod
     def from_json(cls, fp: Path):
-        with open(fp, 'w') as f:
-            cls(**json.load(f))
+        with open(fp, 'r') as f:
+            return cls(**json.load(f))
 
 
 class ImplicitConfig(Config):
@@ -21,10 +22,12 @@ class ImplicitConfig(Config):
         epochs: int,
         num_factors: int,
         vectors_file: str,
+        model_file: str,
     ):
         self.epochs = epochs
         self.num_factors = num_factors
         self.vectors_file = vectors_file
+        self.model_file = model_file
         
         
 class CatboostConfig(Config):
@@ -42,7 +45,10 @@ class TrainConfig(Config):
     def __init__(
         self,
         data_dir: Path,
+        log_dir: Path,
         products_file: str,
+        features_file: str,
+        gt_items_count_file: str,
         client_purchases_file: str,
         products_enriched_file: str,
         client_offset: int,
@@ -51,15 +57,22 @@ class TrainConfig(Config):
         catboost: dict,
     ):
         self.data_dir = data_dir
-        self.products_file = products_file
-        self.client_purchases_file = client_purchases_file
-        self.products_enriched_file = products_enriched_file
+        self.log_dir = log_dir
+        self.products_file = os.path.join(data_dir, products_file)
+        self.features_file = os.path.join(data_dir, features_file)
+        self.gt_items_count_file = os.path.join(data_dir, gt_items_count_file)
+        self.client_purchases_file = os.path.join(data_dir, client_purchases_file)
+        self.products_enriched_file = os.path.join(data_dir, products_enriched_file)
 
         self.client_offset = client_offset
         self.client_limit = client_limit
 
         self.implicit = ImplicitConfig.from_dict(implicit)
+        self.implicit.vectors_file = os.path.join(data_dir, self.implicit.vectors_file)
+        self.implicit.model_file = os.path.join(data_dir, self.implicit.model_file)
+
         self.catboost = CatboostConfig.from_dict(catboost)
+        self.catboost.model_file = os.path.join(data_dir, self.catboost.model_file)
 
 
 if __name__ == '__main__':
