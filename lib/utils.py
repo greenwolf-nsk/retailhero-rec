@@ -1,4 +1,5 @@
 import json
+import pickle
 from collections import namedtuple
 
 import attr
@@ -78,3 +79,13 @@ def inplace_hash_join(left_list: dict, products_data: Dict[str, ProductsRow]):
         for k, v in attr.asdict(products_data[product_id]).items():
             if k != 'product_id':
                 left_list[k].append(v)
+
+
+def pickle_dump(fp: Path, obj: object):
+    with open(fp, 'wb') as f:
+        pickle.dump(obj, f)
+
+
+def pickle_load(fp: Path):
+    with open(fp, 'rb') as f:
+        return pickle.load(f)

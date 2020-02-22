@@ -47,27 +47,35 @@ class TrainConfig(Config):
         data_dir: Path,
         log_dir: Path,
         products_file: str,
-        features_file: str,
-        gt_items_count_file: str,
+        train_features_file: str,
+        train_gt_items_count_file: str,
+        test_features_file: str,
+        test_gt_items_count_file: str,
         client_purchases_file: str,
         products_enriched_file: str,
         product_store_stats_file: str,
-        client_offset: int,
-        client_limit: int,
+        train_start: int,
+        train_end: int,
+        test_start: int,
+        test_end: int,
         implicit: dict,
         catboost: dict,
     ):
         self.data_dir = data_dir
         self.log_dir = log_dir
         self.products_file = os.path.join(data_dir, products_file)
-        self.features_file = os.path.join(data_dir, features_file)
-        self.gt_items_count_file = os.path.join(data_dir, gt_items_count_file)
+        self.train_features_file = os.path.join(data_dir, train_features_file)
+        self.test_features_file = os.path.join(data_dir, test_features_file)
+        self.train_gt_items_count_file = os.path.join(data_dir, train_gt_items_count_file)
+        self.test_gt_items_count_file = os.path.join(data_dir, test_gt_items_count_file)
         self.client_purchases_file = os.path.join(data_dir, client_purchases_file)
         self.products_enriched_file = os.path.join(data_dir, products_enriched_file)
         self.product_store_stats_file = os.path.join(data_dir, product_store_stats_file)
 
-        self.client_offset = client_offset
-        self.client_limit = client_limit
+        self.train_start = train_start
+        self.train_end = train_end
+        self.test_start = test_start
+        self.test_end = test_end
 
         self.implicit = ImplicitConfig.from_dict(implicit)
         self.implicit.vectors_file = os.path.join(data_dir, self.implicit.vectors_file)
@@ -75,32 +83,3 @@ class TrainConfig(Config):
 
         self.catboost = CatboostConfig.from_dict(catboost)
         self.catboost.model_file = os.path.join(data_dir, self.catboost.model_file)
-
-
-if __name__ == '__main__':
-    train_config = {
-        'data_dir': '../data',
-        'products_file': 'products.csv',
-        'products_enriched_file':  'products_enriched.csv',
-        'client_purchases_file': 'client_purchases.tsv',
-        'client_offset': 1000,
-        'client_limit': 200_000,
-        'implicit': {
-            'epochs': 50,
-            'num_factors': 64,
-            'vectors_file': 'vectors.json'
-        },
-        'catboost': {
-            'model_file': 'catboost_200k.cb',
-            'train_params': {
-                'objective': 'Logloss',
-                'task_type': 'GPU',
-                'eval_metric': 'MAP',
-                'iterations': 500,
-                'verbose': 10,
-            }
-        }
-    }
-    cnf = TrainConfig(**train_config)
-    print(cnf.catboost.train_params)
-

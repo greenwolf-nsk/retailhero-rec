@@ -5,7 +5,11 @@ from pathlib import Path
 from typing import List, Tuple
 
 import numpy as np
+import implicit
 from scipy.sparse import lil_matrix, csr_matrix, coo_matrix, vstack
+
+from lib.config import ImplicitConfig
+from lib.metrics import normalized_average_precision
 
 
 class ProductIdMap:
@@ -34,7 +38,7 @@ def create_sparse_row(num_products: tuple, indices: list):
 def create_sparse_row_from_counter(num_products: tuple, counter: Counter):
     ids, counts = list(zip(*counter.items()))
     return coo_matrix(
-        (np.array(counts, dtype=np.float64), ([0] * len(ids), ids)),
+        (np.array(counts, dtype=np.float64) / sum(counts), ([0] * len(ids), ids)),
         shape=(1, num_products),
     )
 
@@ -99,13 +103,51 @@ class ImplicitRecommender:
         self.model = model
         self.product_id_map = product_id_map
 
-    def recommend(self, user_record: dict, num_recs: int = 30) -> list:
+    def recommend(self, user_record: dict, filter_seen: bool = False, num_recs: int = 30) -> list:
         row = create_sparse_row_from_record(user_record, self.product_id_map)
         recs = self.model.recommend(
             userid=0,
             user_items=row.tocsr(),
             N=num_recs,
-            filter_already_liked_items=False,
+            filter_already_liked_items=filter_seen,
             recalculate_user=True
         )
         return [(self.product_id_map.to_product(rec), score) for rec, score in recs]
+
+
+def train_implicit_vectors(
+        train_records: list,
+        config: ImplicitConfig,
+        product_id_map: ProductIdMap
+):
+    matrix = create_sparse_purchases_matrix(train_records, product_id_map)
+    model = implicit.als.AlternatingLeastSquares(
+        factors=config.num_factors,
+        iterations=config.epochs
+    )
+    model.fit(matrix.T)
+    item_vectors = {
+        product_id_map.to_product(i): list(map(float, factor))
+        for i, factor in enumerate(model.item_factors)  # user factors, cuz in implicit its inverted
+    }
+    with open(config.vectors_file, 'w') as f:
+        json.dump(item_vectors, f)
+
+    return item_vectors
+
+
+def validate(recommender, train_records: list, test_records: list, filter_seen: bool = False):
+    gt_len = []
+    scores = []
+    for train_record, test_record in zip(train_records, test_records):
+        try:
+            recs = [x[0] for x in recommender.recommend(train_record, filter_seen)]
+        except:
+            recs = []
+        if test_record['transaction_history']:
+            next_transaction = test_record['transaction_history'][0]
+            gt_items = [p['product_id'] for p in next_transaction['products']]
+            scores.append(normalized_average_precision(gt_items, recs))
+            gt_len.append(len(gt_items))
+
+    return scores, gt_len
