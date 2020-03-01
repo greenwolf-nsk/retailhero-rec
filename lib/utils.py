@@ -72,6 +72,12 @@ class ProductsRow:
     max_p = attr.ib(converter=maybe_float)
     min_p = attr.ib(converter=maybe_float)
     avg_p = attr.ib(converter=maybe_float)
+    max_tr_size = attr.ib(converter=maybe_float)
+    min_tr_size = attr.ib(converter=maybe_float)
+    avg_tr_size = attr.ib(converter=maybe_float)
+    unique_clients_n = attr.ib(converter=maybe_float)
+    product_count = attr.ib(converter=maybe_float)
+    unique_stores = attr.ib(converter=maybe_float)
 
 
 def inplace_hash_join(left_list: dict, products_data: Dict[str, ProductsRow]):

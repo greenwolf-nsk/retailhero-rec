@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import catboost as cb
 
@@ -28,11 +29,11 @@ def train(
         for col in cat_cols:
             df[col] = df[col].fillna(0)
 
-    median_client_id = train_features.iloc[train_features.shape[0] // 4 * 3].client_id
-    split_idx = train_features[train_features['client_id'] == median_client_id].index.max() + 1
+    clients_ids = train_features.client_id.unique()
+    sample_clients = np.random.choice(clients_ids, size=len(clients_ids) * 9 // 10, replace=False)
 
-    train_df = train_features[:split_idx]
-    val_df = train_features[split_idx:]
+    train_df = train_features[train_features.client_id.isin(sample_clients)]
+    val_df = train_features[~train_features.client_id.isin(sample_clients)]
     test_df = test_features
 
     groups = {}
@@ -46,9 +47,7 @@ def train(
 
     model = cb.CatBoost(config.catboost.train_params)
     model.fit(train_pool, eval_set=val_pool, early_stopping_rounds=100)
-
     model.save_model(config.catboost.model_file)
-
     # validate
     gt_cnt_map = {
         'val': train_gt_items_count,

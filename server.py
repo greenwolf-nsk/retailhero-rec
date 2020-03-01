@@ -8,6 +8,7 @@ from flask import Flask, jsonify
 from lib.config import TrainConfig
 from lib.hardcode import TOP_ITEMS
 from lib.logger import configure_logger
+from lib.product_store_features import ProductStoreStats
 from lib.recommender import CatBoostRecommenderWithPopularFallback, cols
 from lib.utils import read_products_file, pickle_load
 
@@ -27,8 +28,7 @@ app.item_vectors = pickle_load(config.implicit.vectors_file)
 with open(config.implicit.model_file, 'rb') as f:
     app.implicit_model = pickle.load(f)
 
-with open(config.product_store_stats_file, 'rb') as f:
-    app.product_store_stats = pickle.load(f)
+app.product_store_stats = ProductStoreStats()
 
 app.recommender = CatBoostRecommenderWithPopularFallback(
     model=app.model,
