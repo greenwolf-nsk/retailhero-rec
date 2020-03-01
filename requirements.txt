@@ -4,5 +4,7 @@ requests~=2.22.0
 numpy==1.18.1
 pandas==1.0.0rc0
 catboost==0.20.2
-attrs
-tqdm
+implicit==0.4.2
+attrs==19.3.0
+tqdm==4.42.1
+colorama==0.4.3

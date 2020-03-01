@@ -1,0 +1,35 @@
+{
+    "data_dir": "./data_small",
+    "log_dir": "./logs",
+    "products_file": "products.csv",
+    "train_features_file": "train_features.csv",
+    "train_gt_items_count_file": "train_gt_items_count.csv",
+    "test_features_file": "test_features.csv",
+    "test_gt_items_count_file": "test_gt_items_count.csv",
+    "products_enriched_file":  "products_enriched.csv",
+    "client_purchases_file": "clients_purchases.tsv",
+    "product_store_stats_file": "products_store_stats.pkl",
+    "train_start": 100000,
+    "train_end": 400000,
+    "test_start": 0,
+    "test_end": 100000,
+
+    "implicit": {
+        "epochs": 50,
+        "num_factors": 128,
+        "vectors_file": "vectors.json",
+        "model_file": "model.pkl"
+    },
+    "catboost": {
+        "model_file": "model.cb",
+        "train_params": {
+            "objective": "Logloss",
+            "learning_rate": 0.2,
+            "l2_leaf_reg": 9,
+            "task_type": "GPU",
+            "eval_metric": "MAP",
+            "iterations": 5000,
+            "verbose": 10
+        }
+    }
+}
