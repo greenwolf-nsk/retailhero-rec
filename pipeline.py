@@ -67,6 +67,7 @@ if __name__ == '__main__':
             config.train_end
         )
         logger.info(f'train: {config.train_start} - {config.train_end}')
+
         test_seed_records, test_target_records = read_clients_purchases(
             config.client_purchases_file,
             config.test_start,
@@ -74,12 +75,12 @@ if __name__ == '__main__':
         )
         logger.info(f'test: {config.test_start} - {config.test_end}')
 
-        products = pd.read_csv(config.products_file)
-        product_id_map = ProductIdMap(products['product_id'].values)
+    products = pd.read_csv(config.products_file)
+    product_id_map = ProductIdMap(products['product_id'].values)
 
     if args.train_implicit_model:
         logger.info('training implicit model...')
-        model = implicit.nearest_neighbours.ItemItemRecommender(K=10)
+        model = implicit.nearest_neighbours.CosineRecommender(K=10)
         matrix = create_sparse_purchases_matrix(train_seed_records, product_id_map)
         model.fit(matrix.T)
         recommender = ImplicitRecommender(model, product_id_map)

@@ -1,4 +1,3 @@
-import random
 from collections import defaultdict
 from itertools import chain, groupby
 from operator import itemgetter
@@ -12,7 +11,7 @@ from lib.i2i_model import ImplicitRecommender
 from lib.product_store_features import ProductStoreStats, get_user_favorite_store, \
     get_user_last_store
 
-test_start = datetime(2019, 3, 1, 0, 0, 0)
+test_start = datetime(2019, 3, 2, 0, 0, 0)
 
 
 def get_client_product_dot(client_vector: np.array, product: str, product_vectors: dict) -> float:
@@ -35,11 +34,11 @@ def create_features_from_transactions(
     features = defaultdict(list)
 
     for user_data in users_data:
-        trs = user_data['transaction_history']
+        trs = sorted(user_data['transaction_history'], key=lambda x: x['datetime'])
         if not trs:
             continue
         if implicit_recommender is not None:
-            recs = dict(implicit_recommender.recommend(user_data, False, 100))
+            recs = dict(implicit_recommender.recommend(user_data, False, 50))
 
         client_id = user_data['client_id']
         favorite_store, last_store = get_user_favorite_store(user_data), get_user_last_store(user_data)
@@ -66,12 +65,12 @@ def create_features_from_transactions(
         key = itemgetter('product_id')
         for product, part in groupby(sorted(products, key=key), key=key):
             part = list(part)
-            product_count = sum([product['quantity'] for product in part])
             # client features (same for all products)
             features['total_pucrhases'].append(total_transactions)
             features['average_psum'].append(average_psum)
             features['client_id'].append(client_id)
             features['last_transaction_age'].append(transaction_ages[-1])
+            features['first_transaction_age'].append(transaction_ages[0])
             features['favorite_store_id'].append(favorite_store)
             features['last_store_id'].append(last_store)
             features['fav_store_count'].append(product_store_stats.store_cnt(favorite_store))
@@ -81,9 +80,12 @@ def create_features_from_transactions(
             product_count = sum([product['quantity'] for product in part])
             features['product_id'].append(product)
             features['count'].append(product_count)
+            features['tr_count'].append(len(part))
             features['p_tr_share'].append(len(part) / max(transaction_ids))
             features['last_transaction'].append(max([p['tid'] for p in part]) / max(transaction_ids))
+            features['first_transaction'].append(min([p['tid'] for p in part]) / max(transaction_ids))
             features['last_product_transaction_age'].append(min([p['tr_age'] for p in part]))
+            features['first_product_transaction_age'].append(max([p['tr_age'] for p in part]))
 
             fav_product_store_share = product_store_stats.product_store_share(product, favorite_store)
             last_product_store_share = product_store_stats.product_store_share(product, last_store)
@@ -153,7 +155,7 @@ def create_target_from_transactions(test_users_transactions: list) -> pd.DataFra
     for user_transactions in test_users_transactions:
         if not user_transactions['transaction_history']:
             continue
-        first_transaction = random.choice(user_transactions['transaction_history'])
+        first_transaction = user_transactions['transaction_history'][0]
         client_id = user_transactions['client_id']
 
         for product in first_transaction['products']:

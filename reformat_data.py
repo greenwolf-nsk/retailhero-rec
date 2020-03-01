@@ -1,4 +1,5 @@
 import json
+import random
 from pathlib import Path
 from typing import List
 
@@ -36,11 +37,17 @@ def parse_purchases(purchases_fp: Path, out_fp: Path, split_date: str):
             for line in tqdm.tqdm(fin):
                 row = PurchaseRow(*line.strip().split(','))
                 if current_client_id != row.client_id:
-                    train = json.dumps(process_client_purchases(client_purchases_train))
+                    train_transactions = purchases_to_transactions(client_purchases_train)
+                    test_transactions = purchases_to_transactions(client_purchases_test)
+                    if len(test_transactions) > 1:
+                        split_point = random.randint(0, len(test_transactions) - 2)
+                        train_transactions += test_transactions[:split_point]
+                        test_transactions = test_transactions[split_point:]
+                    train = json.dumps({'client_id': current_client_id, 'transaction_history': train_transactions})
                     clients_total += 1
-                    if client_purchases_test:
+                    if test_transactions:
                         # skip records w/o actions in test period
-                        test = json.dumps(process_client_purchases(client_purchases_test))
+                        test = json.dumps({'client_id': current_client_id, 'transaction_history': test_transactions})
                         fout.write(f'{train}\t{test}\n')
                         clients_test += 1
                     client_purchases_train = [row]
@@ -55,6 +62,48 @@ def parse_purchases(purchases_fp: Path, out_fp: Path, split_date: str):
     print(f'total: {clients_total}, test: {clients_test}')
 
 
+def purchases_to_transactions(client_purchases: List[PurchaseRow]) -> dict:
+    if not client_purchases:
+        return []
+    transactions = []
+    row = client_purchases[0]
+    current_transaction = {
+        'datetime': row.transaction_datetime,
+        'purchase_sum': row.purchase_sum,
+        'store_id': row.store_id,
+        'products': [{
+            'product_id': row.product_id,
+            'price': row.trn_sum_from_iss,
+            'quantity': row.product_quantity,
+        }]
+    }
+    current_transaction_id = row.transaction_id
+    for row in client_purchases[1:]:
+        if row.transaction_id != current_transaction_id:
+            transactions.append(current_transaction)
+            current_transaction = {
+                'datetime': row.transaction_datetime,
+                'purchase_sum': row.purchase_sum,
+                'store_id': row.store_id,
+                'products': [{
+                    'product_id': row.product_id,
+                    'price': row.trn_sum_from_iss,
+                    'quantity': row.product_quantity,
+                }]
+            }
+            current_transaction_id = row.transaction_id
+        else:
+            current_transaction['products'].append({
+                'product_id': row.product_id,
+                'price': row.trn_sum_from_iss,
+                'quantity': row.product_quantity,
+            })
+
+    transactions.append(current_transaction)
+
+    return transactions
+
+
 def process_client_purchases(client_purchases: List[PurchaseRow]) -> dict:
     first_row = client_purchases[0]
     client_record = {
@@ -63,7 +112,7 @@ def process_client_purchases(client_purchases: List[PurchaseRow]) -> dict:
     transactions = []
     current_transaction = {}
     current_transaction_id = -1
-    for row in client_purchases[1:]:
+    for row in client_purchases:
         if row.transaction_id != current_transaction_id:
             current_transaction = {
                 'datetime': row.transaction_datetime,
@@ -90,5 +139,5 @@ def process_client_purchases(client_purchases: List[PurchaseRow]) -> dict:
 
 
 if __name__ == '__main__':
-    split_date = '2019-03-01 00:00:00'
-    parse_purchases('./data/purchases.csv', './data/clients_purchases.tsv', split_date)
+    split_date = '2019-03-02 00:00:00'
+    parse_purchases('./data/purchases.csv', './data_small/clients_purchases.tsv', split_date)

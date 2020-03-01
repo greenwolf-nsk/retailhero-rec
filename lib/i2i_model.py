@@ -1,8 +1,9 @@
 import json
 from itertools import combinations
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
+from datetime import datetime
 
 import numpy as np
 import implicit
@@ -10,6 +11,9 @@ from scipy.sparse import lil_matrix, csr_matrix, coo_matrix, vstack
 
 from lib.config import ImplicitConfig
 from lib.metrics import normalized_average_precision
+
+
+test_start = datetime(2019, 3, 2, 0, 0, 0)
 
 
 class ProductIdMap:
@@ -38,17 +42,20 @@ def create_sparse_row(num_products: tuple, indices: list):
 def create_sparse_row_from_counter(num_products: tuple, counter: Counter):
     ids, counts = list(zip(*counter.items()))
     return coo_matrix(
-        (np.array(counts, dtype=np.float64) / sum(counts), ([0] * len(ids), ids)),
+        (np.array(counts, dtype=np.float64), ([0] * len(ids), ids)),
         shape=(1, num_products),
     )
 
 
 def create_sparse_row_from_record(user_record: dict, product_id_map: ProductIdMap):
-    product_counts = Counter([
-            product_id_map.to_id(product['product_id'])
-            for transaction in user_record['transaction_history']
-            for product in transaction['products']
-        ])
+    product_counts = defaultdict(int)
+    for transaction in user_record['transaction_history']:
+        age = max(0, (test_start - datetime.fromisoformat(transaction['datetime'])).days)
+        for product in transaction['products']:
+            pid = product_id_map.to_id(product['product_id'])
+            score = (age + 1) ** (-1 / 5)
+            product_counts[pid] += score
+
     return create_sparse_row_from_counter(len(product_id_map), product_counts)
 
 

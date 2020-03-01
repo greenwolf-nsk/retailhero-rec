@@ -9,10 +9,10 @@
     "products_enriched_file":  "products_enriched.csv",
     "client_purchases_file": "clients_purchases.tsv",
     "product_store_stats_file": "products_store_stats.pkl",
-    "train_start": 1000,
-    "train_end": 350000,
-    "test_start": 350000,
-    "test_end": 355000,
+    "train_start": 100000,
+    "train_end": 400000,
+    "test_start": 0,
+    "test_end": 100000,
 
     "implicit": {
         "epochs": 50,
@@ -24,6 +24,8 @@
         "model_file": "model.cb",
         "train_params": {
             "objective": "Logloss",
+            "learning_rate": 0.2,
+            "l2_leaf_reg": 9,
             "task_type": "GPU",
             "eval_metric": "MAP",
             "iterations": 5000,
