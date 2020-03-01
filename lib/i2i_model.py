@@ -1,11 +1,19 @@
 import json
 from itertools import combinations
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
+from datetime import datetime
 
 import numpy as np
+import implicit
 from scipy.sparse import lil_matrix, csr_matrix, coo_matrix, vstack
+
+from lib.config import ImplicitConfig
+from lib.metrics import normalized_average_precision
+
+
+test_start = datetime(2019, 3, 2, 0, 0, 0)
 
 
 class ProductIdMap:
@@ -40,11 +48,14 @@ def create_sparse_row_from_counter(num_products: tuple, counter: Counter):
 
 
 def create_sparse_row_from_record(user_record: dict, product_id_map: ProductIdMap):
-    product_counts = Counter([
-            product_id_map.to_id(product['product_id'])
-            for transaction in user_record['transaction_history']
-            for product in transaction['products']
-        ])
+    product_counts = defaultdict(int)
+    for transaction in user_record['transaction_history']:
+        age = max(0, (test_start - datetime.fromisoformat(transaction['datetime'])).days)
+        for product in transaction['products']:
+            pid = product_id_map.to_id(product['product_id'])
+            score = (age + 1) ** (-1 / 5)
+            product_counts[pid] += score
+
     return create_sparse_row_from_counter(len(product_id_map), product_counts)
 
 
@@ -99,13 +110,51 @@ class ImplicitRecommender:
         self.model = model
         self.product_id_map = product_id_map
 
-    def recommend(self, user_record: dict, num_recs: int = 30) -> list:
+    def recommend(self, user_record: dict, filter_seen: bool = False, num_recs: int = 30) -> list:
         row = create_sparse_row_from_record(user_record, self.product_id_map)
         recs = self.model.recommend(
             userid=0,
             user_items=row.tocsr(),
             N=num_recs,
-            filter_already_liked_items=False,
+            filter_already_liked_items=filter_seen,
             recalculate_user=True
         )
         return [(self.product_id_map.to_product(rec), score) for rec, score in recs]
+
+
+def train_implicit_vectors(
+        train_records: list,
+        config: ImplicitConfig,
+        product_id_map: ProductIdMap
+):
+    matrix = create_sparse_purchases_matrix(train_records, product_id_map)
+    model = implicit.als.AlternatingLeastSquares(
+        factors=config.num_factors,
+        iterations=config.epochs
+    )
+    model.fit(matrix.T)
+    item_vectors = {
+        product_id_map.to_product(i): list(map(float, factor))
+        for i, factor in enumerate(model.item_factors)  # user factors, cuz in implicit its inverted
+    }
+    with open(config.vectors_file, 'w') as f:
+        json.dump(item_vectors, f)
+
+    return item_vectors
+
+
+def validate(recommender, train_records: list, test_records: list, filter_seen: bool = False):
+    gt_len = []
+    scores = []
+    for train_record, test_record in zip(train_records, test_records):
+        try:
+            recs = [x[0] for x in recommender.recommend(train_record, filter_seen)]
+        except:
+            recs = []
+        if test_record['transaction_history']:
+            next_transaction = test_record['transaction_history'][0]
+            gt_items = [p['product_id'] for p in next_transaction['products']]
+            scores.append(normalized_average_precision(gt_items, recs))
+            gt_len.append(len(gt_items))
+
+    return scores, gt_len

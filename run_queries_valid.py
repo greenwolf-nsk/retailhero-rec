@@ -69,13 +69,11 @@ def run_queries(url, queryset_file, offset, limit):
                         product_ids, deduplicate(resp_data["recommended_products"])[:30], 30
                     )
                     ap_values.append(ap)
-                    print(ap)
-                    #print(sum(ap_values) / len(ap_values))
                 else:
                     ap_values.append(0)
 
-    print(max(timings))
-    print(round(sum(timings) / len(timings), 3))
+    print('max time: ', max(timings))
+    print('avg time: ', round(sum(timings) / len(timings), 3))
     map_score = sum(ap_values) / len(ap_values)
     return map_score
 
